@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 import { FormularioPagamento } from './FormularioPagamento';
 import { HistoricoPagamentos } from './HistoricoPagamentos';
 import { Graficos } from './Graficos';
@@ -7,7 +8,6 @@ import { formatCurrency } from '../utils/formatters';
 import { CarFront, TrendingUp, HandCoins, PiggyBank } from 'lucide-react';
 
 const VALOR_TOTAL_CARRO = 44500;
-const API_URL = 'http://localhost:3001/payments';
 
 export function Dashboard() {
   const [payments, setPayments] = useState([]);
@@ -15,12 +15,23 @@ export function Dashboard() {
 
   const fetchPayments = async () => {
     try {
-      const response = await fetch(API_URL);
-      if (!response.ok) throw new Error('Falha ao carregar pagamentos');
-      const data = await response.json();
-      setPayments(data);
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('payments')
+        .select('*')
+        .order('date', { ascending: false });
+
+      if (error) throw error;
+      
+      // Map 'value' from Supabase to 'amount' for legacy compatibility in other components
+      const mappedData = data ? data.map(item => ({
+        ...item,
+        amount: item.value || item.amount
+      })) : [];
+      
+      setPayments(mappedData);
     } catch (error) {
-      console.error('Erro:', error);
+      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -30,42 +41,43 @@ export function Dashboard() {
     fetchPayments();
   }, []);
 
-  const handleAddPayment = async (payment) => {
+  const handleAddPayment = async ({ paymentDate, paymentValue, paymentMethod }) => {
     try {
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payment),
-      });
+      const { data, error } = await supabase
+        .from('payments')
+        .insert([
+          {
+            date: paymentDate,
+            value: Number(paymentValue),
+            method: paymentMethod
+          }
+        ]);
 
-      if (!response.ok) throw new Error('Falha ao salvar pagamento');
+      if (error) {
+        console.error("Erro ao inserir pagamento:", error);
+        return;
+      }
       
-      const newPayment = await response.json();
-      
-      // Update local state directly to be optimistic, then re-sort if needed, 
-      // or just re-fetch to ensure sync with DB. Re-fetching is safer.
-      fetchPayments();
+      await fetchPayments();
       
     } catch (error) {
-      console.error('Erro ao adicionar pagamento:', error);
-      alert('Erro ao salvar no servidor.');
+      console.error("Erro ao inserir pagamento:", error);
     }
   };
 
   const handleDeletePayment = async (id) => {
     try {
-      const response = await fetch(`${API_URL}/${id}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) throw new Error('Falha ao deletar pagamento');
+      const { error } = await supabase
+        .from('payments')
+        .delete()
+        .eq('id', id);
+        
+      if (error) throw error;
       
       // Refresh to sync state with DB
       fetchPayments();
     } catch (error) {
-      console.error('Erro ao deletar pagamento:', error);
-      alert('Erro ao excluir no servidor.');
+      console.error(error);
     }
   };
 

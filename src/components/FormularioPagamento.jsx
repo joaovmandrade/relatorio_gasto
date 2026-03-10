@@ -10,14 +10,14 @@ export function FormularioPagamento({ onAddPayment }) {
   const [valor, setValor] = useState('');
   const [metodo, setMetodo] = useState('Pix');
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  const handleSubmit = (event) => {
+    event.preventDefault();
     if (!data || !valor || !metodo) return;
 
     onAddPayment({
-      date: data,
-      amount: parseFloat(valor),
-      method: metodo
+      paymentDate: data,
+      paymentValue: valor,
+      paymentMethod: metodo
     });
 
     setValor('');
