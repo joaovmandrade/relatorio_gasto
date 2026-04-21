@@ -4,6 +4,7 @@ import { supabase } from "./lib/supabase"
 import Login from "./pages/Login"
 import Register from "./pages/Register"
 import { Dashboard } from "./components/Dashboard"
+import Settings from "./pages/Settings"
 
 function App() {
   const [session, setSession] = useState(null)
@@ -23,10 +24,16 @@ function App() {
     return () => listener.subscription.unsubscribe()
   }, [])
 
+  // 🔥 LOGADO
   if (session) {
-    return <Dashboard />
+    if (screen === "settings") {
+      return <Settings onBack={() => setScreen("dashboard")} />
+    }
+
+    return <Dashboard onOpenSettings={() => setScreen("settings")} />
   }
 
+  // 🔥 NÃO LOGADO
   if (screen === "login") {
     return <Login onSwitchToRegister={() => setScreen("register")} />
   }

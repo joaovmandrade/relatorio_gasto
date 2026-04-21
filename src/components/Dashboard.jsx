@@ -5,192 +5,287 @@ import { HistoricoPagamentos } from "./HistoricoPagamentos"
 import { Graficos } from "./Graficos"
 import { Card, CardContent } from "./ui/Card"
 import { formatCurrency } from "../utils/formatters"
-import { CarFront, TrendingUp, HandCoins, PiggyBank } from "lucide-react"
-import { LogOut } from "lucide-react"
+import { CarFront } from "lucide-react"
 
-const VALOR_TOTAL_CARRO = 44500
+// 🔥 FORMATAR MÊS
+const formatarMes = (data) => {
+  const texto = data.toLocaleDateString("pt-BR", {
+    month: "long",
+    year: "numeric",
+  })
+  return texto.charAt(0).toUpperCase() + texto.slice(1)
+}
 
-export function Dashboard() {
+export function Dashboard({ onOpenSettings }) {
   const [payments, setPayments] = useState([])
+  const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  const fetchPayments = async () => {
-    try {
-      setLoading(true)
-      const { data, error } = await supabase
-        .from("payments")
-        .select("*")
-        .order("date", { ascending: false })
-
-      if (error) throw error
-
-      const mappedData = data
-        ? data.map((item) => ({
-            ...item,
-            amount: item.value || item.amount,
-          }))
-        : []
-
-      setPayments(mappedData)
-    } catch (error) {
-      console.error(error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
+  // ===== LOAD DATA =====
   useEffect(() => {
-    fetchPayments()
+    async function load() {
+      try {
+        setLoading(true)
+
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+
+        // 🔴 NÃO LOGADO
+        if (!user) {
+          setLoading(false)
+          return
+        }
+
+        // ===== PROFILE =====
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single()
+
+        // 🔥 SE NÃO TEM CONFIG → MANDA PRO SETTINGS
+        if (!profileData || !profileData.item || !profileData.total_value) {
+          onOpenSettings()
+          return
+        }
+
+        setProfile(profileData)
+
+        // ===== PAYMENTS =====
+        const { data: paymentsData } = await supabase
+          .from("payments")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("date", { ascending: false })
+
+        const mapped = (paymentsData || []).map((p) => ({
+          ...p,
+          amount: p.value || p.amount,
+        }))
+
+        setPayments(mapped)
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    load()
   }, [])
 
+  // ===== LOADING =====
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+        Carregando...
+      </div>
+    )
+  }
+
+  // ===== DADOS =====
+  const totalCarro = profile?.total_value || 0
+  const item = profile?.item || "Item"
+  const totalPago = payments.reduce((sum, p) => sum + p.amount, 0)
+  const restante = Math.max(0, totalCarro - totalPago)
+  const progresso = totalCarro > 0 ? (totalPago / totalCarro) * 100 : 0
+
+  // ===== META MENSAL =====
+  const hoje = new Date()
+
+  const pagamentosMes = payments.filter((p) => {
+    const d = new Date(p.date)
+    return (
+      d.getMonth() === hoje.getMonth() && d.getFullYear() === hoje.getFullYear()
+    )
+  })
+
+  const totalMes = pagamentosMes.reduce((acc, p) => acc + p.amount, 0)
+  const meta = profile?.monthly_goal || 0
+  const progressoMeta = meta > 0 ? (totalMes / meta) * 100 : 0
+
+  // ===== MÉDIA =====
+  const mesesUnicos = new Set(
+    payments.map((p) => {
+      const d = new Date(p.date)
+      return `${d.getMonth()}-${d.getFullYear()}`
+    }),
+  ).size
+
+  const media = mesesUnicos > 0 ? totalPago / mesesUnicos : 0
+
+  let previsao = null
+
+  if (media > 0 && restante > 0) {
+    const mesesRestantes = restante / media
+    const dataFinal = new Date()
+    dataFinal.setMonth(dataFinal.getMonth() + Math.ceil(mesesRestantes))
+    previsao = formatarMes(dataFinal)
+  }
+
+  // ===== ADD =====
   const handleAddPayment = async ({
     paymentDate,
     paymentValue,
     paymentMethod,
   }) => {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
-      const { error } = await supabase.from("payments").insert([
-        {
-          date: paymentDate,
-          value: Number(paymentValue),
-          method: paymentMethod,
-          user_id: user.id, // 🔥 GARANTIDO
-        },
-      ])
+    if (!user) return
 
-      if (error) {
-        console.error("Erro ao salvar:", error)
-        return
-      }
+    await supabase.from("payments").insert([
+      {
+        date: paymentDate,
+        value: Number(paymentValue),
+        method: paymentMethod,
+        user_id: user.id,
+      },
+    ])
 
-      await fetchPayments()
-    } catch (err) {
-      console.error(err)
-    }
-  }
+    // 🔥 RELOAD
+    const { data: newData } = await supabase
+      .from("payments")
+      .select("*")
+      .eq("user_id", user.id)
 
-  const handleDeletePayment = async (id) => {
-    try {
-      const { error } = await supabase.from("payments").delete().eq("id", id)
-
-      if (error) throw error
-      fetchPayments()
-    } catch (error) {
-      console.error(error)
-    }
-  }
-
-  const totalPago = payments.reduce((sum, payment) => sum + payment.amount, 0)
-  const valorRestante = Math.max(0, VALOR_TOTAL_CARRO - totalPago)
-  const percentualPago = (totalPago / VALOR_TOTAL_CARRO) * 100
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
-        <p className="animate-pulse text-lg">Carregando dados...</p>
-      </div>
+    setPayments(
+      newData.map((p) => ({
+        ...p,
+        amount: p.value,
+      })),
     )
   }
 
+  // ===== DELETE =====
+  const handleDeletePayment = async (id) => {
+    await supabase.from("payments").delete().eq("id", id)
+
+    setPayments((prev) => prev.filter((p) => p.id !== id))
+  }
+
   return (
-    <div className="min-h-screen bg-slate-900 p-4 md:p-10">
+    <div className="min-h-screen bg-slate-900 p-6">
       <div className="max-w-6xl mx-auto space-y-8">
         {/* HEADER */}
-        <header className="flex items-center justify-between mb-4">
+        <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-              <CarFront className="h-8 w-8 text-blue-500" />
-              Dashboard do Veículo
+            <h1 className="text-3xl text-white font-bold flex items-center gap-2">
+              <CarFront className="text-blue-500" />
+              Dashboard {item}
             </h1>
-            <p className="text-slate-400 mt-1">
-              Controle total dos seus pagamentos 🚀
-            </p>
+            
           </div>
 
           <button
-            onClick={async () => {
-              await supabase.auth.signOut()
-            }}
-            className="flex items-center gap-2 bg-slate-800 border border-slate-700 text-red-400 hover:text-white hover:border-red-500 hover:bg-red-500/10 px-4 py-2 rounded-lg text-sm transition"
+            onClick={onOpenSettings}
+            className="bg-slate-800 border border-slate-700 px-4 py-2 rounded-lg text-blue-400 hover:bg-slate-700"
           >
-            <LogOut className="h-4 w-4" />
-            Sair
+            ⚙️ Configurações
           </button>
-        </header>
+        </div>
 
         {/* CARDS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-          {/* TOTAL CARRO */}
-          <Card className="bg-gradient-to-br from-blue-600 to-blue-800 text-white border-none shadow-lg hover:scale-[1.02] transition">
-            <CardContent className="p-6">
-              <p className="text-blue-100 text-sm">Valor total</p>
-              <h3 className="text-2xl font-bold mt-1">
-                {formatCurrency(VALOR_TOTAL_CARRO)}
-              </h3>
+        <div className="grid md:grid-cols-4 gap-4">
+          <Card className="bg-blue-600 text-white">
+            <CardContent className="p-5">
+              <p>Valor total</p>
+              <h2 className="text-xl font-bold">
+                {formatCurrency(totalCarro)}
+              </h2>
             </CardContent>
           </Card>
 
-          {/* TOTAL PAGO */}
-          <Card className="bg-slate-800 border border-slate-700 shadow-md hover:shadow-xl transition">
-            <CardContent className="p-6">
-              <p className="text-slate-400 text-sm">Total pago</p>
-              <h3 className="text-2xl font-bold text-emerald-400 mt-1">
+          <Card className="bg-slate-800 border border-slate-700">
+            <CardContent className="p-5">
+              <p>Total pago</p>
+              <h2 className="text-emerald-400 font-bold">
                 {formatCurrency(totalPago)}
-              </h3>
+              </h2>
             </CardContent>
           </Card>
 
-          {/* RESTANTE */}
-          <Card className="bg-slate-800 border border-slate-700 shadow-md hover:shadow-xl transition">
-            <CardContent className="p-6">
-              <p className="text-slate-400 text-sm">Restante</p>
-              <h3 className="text-2xl font-bold text-amber-400 mt-1">
-                {formatCurrency(valorRestante)}
-              </h3>
+          <Card className="bg-slate-800 border border-slate-700">
+            <CardContent className="p-5">
+              <p>Restante</p>
+              <h2 className="text-yellow-400 font-bold">
+                {formatCurrency(restante)}
+              </h2>
             </CardContent>
           </Card>
 
-          {/* PROGRESSO */}
-          <Card className="bg-slate-800 border border-slate-700 shadow-md hover:shadow-xl transition">
-            <CardContent className="p-6">
-              <p className="text-slate-400 text-sm">Progresso</p>
-              <h3 className="text-xl font-bold text-white mt-1">
-                {percentualPago.toFixed(2)}%
-              </h3>
-
-              <div className="mt-4 h-2 w-full bg-slate-700 rounded-full overflow-hidden">
+          <Card className="bg-slate-800 border border-slate-700">
+            <CardContent className="p-5">
+              <p>Progresso</p>
+              <p>{progresso.toFixed(1)}%</p>
+              <div className="h-2 bg-slate-700 rounded mt-2">
                 <div
-                  className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all duration-500"
-                  style={{ width: `${Math.min(100, percentualPago)}%` }}
+                  className="h-2 bg-green-500 rounded"
+                  style={{ width: `${progresso}%` }}
                 />
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* CONTEÚDO */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* GRÁFICOS */}
-          <div className="lg:col-span-2 bg-slate-800 border border-slate-700 rounded-2xl p-4 shadow-md">
+        {/* PREVISÃO + META */}
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
+            <p className="text-slate-400 text-xs uppercase">
+              Previsão de quitação
+            </p>
+            <h3 className="text-white text-lg font-bold">
+              {previsao || "Sem dados"}
+            </h3>
+            <p className="text-slate-400 text-xs mt-2">
+              Média: {formatCurrency(media)}
+            </p>
+          </div>
+
+          <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
+            <div className="flex justify-between text-xs text-slate-400">
+              <span>Meta mensal</span>
+              <span>{formatCurrency(meta)}</span>
+            </div>
+
+            <p className="text-green-400 mt-2">
+              {progressoMeta >= 100
+                ? "Meta atingida 🎉"
+                : `${progressoMeta.toFixed(0)}% da meta`}
+            </p>
+
+            <div className="h-2 bg-slate-700 rounded mt-2">
+              <div
+                className="h-2 bg-green-500 rounded"
+                style={{ width: `${Math.min(progressoMeta, 100)}%` }}
+              />
+            </div>
+
+            <p className="text-xs text-slate-400 mt-2">
+              Pago no mês: {formatCurrency(totalMes)}
+            </p>
+          </div>
+        </div>
+
+        {/* GRÁFICOS + FORM */}
+        <div className="grid lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 bg-slate-800 p-4 rounded-xl border border-slate-700">
             <Graficos
-              totalCarro={VALOR_TOTAL_CARRO}
+              totalCarro={totalCarro}
               totalPago={totalPago}
               pagamentos={payments}
             />
           </div>
 
-          {/* FORM */}
-          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 shadow-md">
+          <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
             <FormularioPagamento onAddPayment={handleAddPayment} />
           </div>
         </div>
 
         {/* HISTÓRICO */}
-        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 shadow-md">
+        <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
           <HistoricoPagamentos
             payments={payments}
             onDeletePayment={handleDeletePayment}

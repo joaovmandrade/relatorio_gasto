@@ -84,7 +84,9 @@ export function FormularioPagamento({ onAddPayment }) {
               className="bg-transparent border border-slate-600 text-white text-sm px-3 py-2 rounded-md focus:border-blue-500"
             >
               <option className="bg-slate-800">Pix</option>
-              <option className="bg-slate-800">Comissão</option>
+              <option className="bg-slate-800">Débito</option>
+              <option className="bg-slate-800">Crédito</option>
+              <option className="bg-slate-800">Outro</option>
             </Select>
           </div>
 
