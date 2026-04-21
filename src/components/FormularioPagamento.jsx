@@ -1,29 +1,40 @@
-import React, { useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from './ui/Card';
-import { Button } from './ui/Button';
-import { Input } from './ui/Input';
-import { Select } from './ui/Select';
-import { PlusCircle } from 'lucide-react';
+import React, { useState } from "react"
+import { supabase } from "../lib/supabase"
+import { Card, CardHeader, CardTitle, CardContent } from "./ui/Card"
+import { Button } from "./ui/Button"
+import { Input } from "./ui/Input"
+import { Select } from "./ui/Select"
+import { PlusCircle } from "lucide-react"
 
 export function FormularioPagamento({ onAddPayment }) {
-  const [data, setData] = useState('');
-  const [valor, setValor] = useState('');
-  const [metodo, setMetodo] = useState('Pix');
+  const [data, setData] = useState("")
+  const [valor, setValor] = useState("")
+  const [metodo, setMetodo] = useState("Pix")
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    if (!data || !valor || !metodo) return;
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    if (!data || !valor || !metodo) return
 
-    onAddPayment({
+    setLoading(true)
+
+    // 🔥 pega usuário logado
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    // 🔥 envia já com user_id
+    await onAddPayment({
       paymentDate: data,
-      paymentValue: valor,
-      paymentMethod: metodo
-    });
+      paymentValue: parseFloat(valor),
+      paymentMethod: metodo,
+    })
 
-    setValor('');
-    setMetodo('Pix');
-    // Keep date as is or reset
-  };
+    setValor("")
+    setMetodo("Pix")
+
+    setLoading(false)
+  }
 
   return (
     <Card className="h-full bg-slate-800/60 backdrop-blur border border-slate-700 rounded-xl shadow-md">
@@ -44,7 +55,7 @@ export function FormularioPagamento({ onAddPayment }) {
               value={data}
               onChange={(e) => setData(e.target.value)}
               required
-              className="bg-transparent border border-slate-600 text-white text-sm px-3 py-2 rounded-md w-full min-w-0 focus:border-blue-500"
+              className="bg-transparent border border-slate-600 text-white text-sm px-3 py-2 rounded-md w-full focus:border-blue-500"
             />
           </div>
 
@@ -80,9 +91,10 @@ export function FormularioPagamento({ onAddPayment }) {
           {/* BOTÃO */}
           <Button
             type="submit"
+            disabled={loading}
             className="w-full mt-3 bg-blue-600 hover:bg-blue-700 text-white text-sm py-2 rounded-md transition"
           >
-            Salvar
+            {loading ? "Salvando..." : "Salvar"}
           </Button>
         </form>
       </CardContent>

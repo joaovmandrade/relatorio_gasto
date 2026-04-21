@@ -3,7 +3,6 @@ import db from '../database.js';
 
 const router = express.Router();
 
-// GET /payments - Return all payments ordered by date
 router.get('/', (req, res) => {
   const sql = `SELECT * FROM payments ORDER BY date DESC`;
   db.all(sql, [], (err, rows) => {
@@ -12,7 +11,6 @@ router.get('/', (req, res) => {
       return;
     }
     
-    // The frontend expects the map: id, date, amount (for value), method
     const formattedRows = rows.map(row => ({
       id: row.id.toString(),
       date: row.date,
@@ -24,7 +22,6 @@ router.get('/', (req, res) => {
   });
 });
 
-// POST /payments - Insert a new payment into the SQLite database
 router.post('/', (req, res) => {
   const { date, amount, method } = req.body;
   if (!date || amount === undefined || !method) {
@@ -52,7 +49,7 @@ router.post('/', (req, res) => {
   });
 });
 
-// DELETE /payments/:id - Delete a payment
+
 router.delete('/:id', (req, res) => {
   const id = req.params.id;
   const sql = `DELETE FROM payments WHERE id = ?`;

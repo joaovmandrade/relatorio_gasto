@@ -5,7 +5,6 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Conectar ao banco de dados SQLite (cria o arquivo se não existir)
 const dbPath = path.resolve(__dirname, 'database/payments.db');
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
@@ -13,7 +12,6 @@ const db = new sqlite3.Database(dbPath, (err) => {
   } else {
     console.log('Conectado ao banco de dados SQLite em:', dbPath);
     
-    // Criar tabela pagamentos se não existir
     db.run(`
       CREATE TABLE IF NOT EXISTS payments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

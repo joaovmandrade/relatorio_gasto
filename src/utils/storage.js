@@ -14,7 +14,6 @@ export const savePayment = (payment) => {
   };
   
   const updatedPayments = [...payments, newPayment];
-  // Sort by date descending
   updatedPayments.sort((a, b) => new Date(b.date) - new Date(a.date));
   
   localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedPayments));

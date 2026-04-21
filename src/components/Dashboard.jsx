@@ -6,6 +6,7 @@ import { Graficos } from "./Graficos"
 import { Card, CardContent } from "./ui/Card"
 import { formatCurrency } from "../utils/formatters"
 import { CarFront, TrendingUp, HandCoins, PiggyBank } from "lucide-react"
+import { LogOut } from "lucide-react"
 
 const VALOR_TOTAL_CARRO = 44500
 
@@ -48,18 +49,27 @@ export function Dashboard() {
     paymentMethod,
   }) => {
     try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
       const { error } = await supabase.from("payments").insert([
         {
           date: paymentDate,
           value: Number(paymentValue),
           method: paymentMethod,
+          user_id: user.id, // 🔥 GARANTIDO
         },
       ])
 
-      if (error) return
+      if (error) {
+        console.error("Erro ao salvar:", error)
+        return
+      }
+
       await fetchPayments()
-    } catch (error) {
-      console.error(error)
+    } catch (err) {
+      console.error(err)
     }
   }
 
@@ -90,14 +100,26 @@ export function Dashboard() {
     <div className="min-h-screen bg-slate-900 p-4 md:p-10">
       <div className="max-w-6xl mx-auto space-y-8">
         {/* HEADER */}
-        <header className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-            <CarFront className="h-8 w-8 text-blue-500" />
-            Dashboard do Veículo
-          </h1>
-          <p className="text-slate-400">
-            Controle total dos seus pagamentos 🚀
-          </p>
+        <header className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+              <CarFront className="h-8 w-8 text-blue-500" />
+              Dashboard do Veículo
+            </h1>
+            <p className="text-slate-400 mt-1">
+              Controle total dos seus pagamentos 🚀
+            </p>
+          </div>
+
+          <button
+            onClick={async () => {
+              await supabase.auth.signOut()
+            }}
+            className="flex items-center gap-2 bg-slate-800 border border-slate-700 text-red-400 hover:text-white hover:border-red-500 hover:bg-red-500/10 px-4 py-2 rounded-lg text-sm transition"
+          >
+            <LogOut className="h-4 w-4" />
+            Sair
+          </button>
         </header>
 
         {/* CARDS */}

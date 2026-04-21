@@ -1,28 +1,38 @@
 import { useState } from "react"
 import { supabase } from "../lib/supabase"
 
-export default function Login({ onSwitchToRegister }) {
+export default function Register({ onSwitchToLogin }) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState("")
+  const [successMsg, setSuccessMsg] = useState("")
 
-  async function handleLogin(e) {
+  async function handleRegister(e) {
     e.preventDefault()
-    setLoading(true)
     setErrorMsg("")
+    setSuccessMsg("")
 
-    const { error } = await supabase.auth.signInWithPassword({
+    if (password !== confirmPassword) {
+      setErrorMsg("As senhas não coincidem")
+      return
+    }
+
+    setLoading(true)
+
+    const { error } = await supabase.auth.signUp({
       email,
       password,
     })
 
     if (error) {
-      if (error.message.toLowerCase().includes("invalid login credentials")) {
-        setErrorMsg("Email ou senha incorretos")
-      } else {
-        setErrorMsg("Erro ao fazer login. Tente novamente.")
-      }
+      setErrorMsg(error.message)
+    } else {
+      setSuccessMsg("Conta criada com sucesso! Você já pode fazer login.")
+      setEmail("")
+      setPassword("")
+      setConfirmPassword("")
     }
 
     setLoading(false)
@@ -32,10 +42,10 @@ export default function Login({ onSwitchToRegister }) {
     <div className="min-h-screen flex items-center justify-center bg-slate-900">
       <div className="bg-slate-800 p-8 rounded-2xl shadow-xl w-full max-w-sm">
         <h2 className="text-2xl font-bold text-white mb-6 text-center">
-          🔐 Login
+          📝 Criar conta
         </h2>
 
-        <form onSubmit={handleLogin} className="flex flex-col gap-4">
+        <form onSubmit={handleRegister} className="flex flex-col gap-4">
           <input
             type="email"
             placeholder="Email"
@@ -54,33 +64,43 @@ export default function Login({ onSwitchToRegister }) {
             required
           />
 
+          <input
+            type="password"
+            placeholder="Confirmar senha"
+            className="p-3 rounded-lg bg-slate-700 text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-blue-500"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+          />
+
           {errorMsg && (
             <div className="bg-red-500/10 border border-red-500 text-red-400 text-sm p-2 rounded-md text-center">
               {errorMsg}
             </div>
           )}
 
+          {successMsg && (
+            <div className="bg-emerald-500/10 border border-emerald-500 text-emerald-400 text-sm p-2 rounded-md text-center">
+              {successMsg}
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={loading}
-            className="bg-blue-600 hover:bg-blue-700 transition p-3 rounded-lg text-white font-semibold flex items-center justify-center"
+            className="bg-blue-600 hover:bg-blue-700 transition p-3 rounded-lg text-white font-semibold"
           >
-            {loading ? (
-              <span className="animate-pulse">Entrando...</span>
-            ) : (
-              "Entrar"
-            )}
+            {loading ? "Criando..." : "Criar conta"}
           </button>
         </form>
 
-        {/* 🔥 BOTÃO DE CADASTRO (FALTAVA ISSO) */}
         <p className="text-slate-400 text-sm text-center mt-4">
-          Não tem conta?{" "}
+          Já tem conta?{" "}
           <button
-            onClick={onSwitchToRegister}
+            onClick={onSwitchToLogin}
             className="text-blue-400 hover:underline"
           >
-            Criar conta
+            Entrar
           </button>
         </p>
       </div>

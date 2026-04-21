@@ -3,7 +3,6 @@ import db from '../database.js';
 
 const router = express.Router();
 
-// Obter todos os pagamentos
 router.get('/', (req, res) => {
   const sql = `SELECT * FROM payments ORDER BY date DESC`;
   db.all(sql, [], (err, rows) => {
@@ -12,9 +11,8 @@ router.get('/', (req, res) => {
       return;
     }
     
-    // Transformar dados do BD para o formato esperado pelo frontend
     const formattedRows = rows.map(row => ({
-      id: row.id.toString(), // Converter ID para string se o frontend usar strict equal
+      id: row.id.toString(),
       date: row.date,
       amount: row.value,
       method: row.method
@@ -24,7 +22,6 @@ router.get('/', (req, res) => {
   });
 });
 
-// Adicionar um novo pagamento
 router.post('/', (req, res) => {
   const { date, amount, method } = req.body;
   if (!date || amount === undefined || !method) {
@@ -52,7 +49,6 @@ router.post('/', (req, res) => {
   });
 });
 
-// Deletar um pagamento (Endpoint bônus)
 router.delete('/:id', (req, res) => {
   const id = req.params.id;
   const sql = `DELETE FROM payments WHERE id = ?`;
