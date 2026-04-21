@@ -3,6 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from './ui/Card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { PieChart as PieChartIcon } from 'lucide-react';
 
+
 export function Graficos({ totalCarro, totalPago, pagamentos }) {
   const valorRestante = Math.max(0, totalCarro - totalPago);
   
@@ -40,13 +41,15 @@ export function Graficos({ totalCarro, totalPago, pagamentos }) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <Card>
+      {/* PROGRESSO */}
+      <Card className="bg-slate-800 border border-slate-700 rounded-xl shadow-md p-2">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <PieChartIcon className="h-5 w-5 text-blue-600" />
+          <CardTitle className="flex items-center gap-2 text-white text-sm">
+            <PieChartIcon className="h-5 w-5 text-blue-500" />
             Progresso do Pagamento
           </CardTitle>
         </CardHeader>
+
         <CardContent>
           <div className="h-[250px] w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -62,9 +65,10 @@ export function Graficos({ totalCarro, totalPago, pagamentos }) {
                   stroke="none"
                 >
                   {progressoData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+                    <Cell key={index} fill={entry.color} />
                   ))}
                 </Pie>
+
                 <Tooltip content={<CustomTooltip />} />
                 <Legend verticalAlign="bottom" height={36} />
               </PieChart>
@@ -73,13 +77,15 @@ export function Graficos({ totalCarro, totalPago, pagamentos }) {
         </CardContent>
       </Card>
 
-      <Card>
+      {/* MÉTODOS */}
+      <Card className="bg-slate-800 border border-slate-700 rounded-xl shadow-md p-2">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <PieChartIcon className="h-5 w-5 text-blue-600" />
+          <CardTitle className="flex items-center gap-2 text-white text-sm">
+            <PieChartIcon className="h-5 w-5 text-blue-500" />
             Estatísticas por método
           </CardTitle>
         </CardHeader>
+
         <CardContent>
           <div className="h-[250px] w-full">
             {metodoData.length > 0 ? (
@@ -96,21 +102,22 @@ export function Graficos({ totalCarro, totalPago, pagamentos }) {
                     stroke="none"
                   >
                     {metodoData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
+                      <Cell key={index} fill={entry.color} />
                     ))}
                   </Pie>
+
                   <Tooltip content={<CustomTooltip />} />
                   <Legend verticalAlign="bottom" height={36} />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
               <div className="h-full flex items-center justify-center text-slate-400 text-sm">
-                Sem dados de pagamento
+                Sem dados
               </div>
             )}
           </div>
         </CardContent>
       </Card>
     </div>
-  );
+  )
 }

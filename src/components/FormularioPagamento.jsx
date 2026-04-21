@@ -26,51 +26,66 @@ export function FormularioPagamento({ onAddPayment }) {
   };
 
   return (
-    <Card className="h-full">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <PlusCircle className="h-5 w-5 text-blue-600" />
+    <Card className="h-full bg-slate-800/60 backdrop-blur border border-slate-700 rounded-xl shadow-md">
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-sm font-semibold text-white">
+          <PlusCircle className="h-4 w-4 text-blue-500" />
           Adicionar pagamento
         </CardTitle>
       </CardHeader>
+
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Data</label>
-            <Input 
-              type="date" 
+        <form onSubmit={handleSubmit} className="space-y-3">
+          {/* DATA */}
+          <div className="space-y-1">
+            <label className="text-xs text-slate-400">Data</label>
+            <Input
+              type="date"
               value={data}
               onChange={(e) => setData(e.target.value)}
               required
+              className="bg-transparent border border-slate-600 text-white text-sm px-3 py-2 rounded-md w-full min-w-0 focus:border-blue-500"
             />
           </div>
-          
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Valor (R$)</label>
-            <Input 
-              type="number" 
+
+          {/* VALOR */}
+          <div className="space-y-1">
+            <label className="text-xs text-slate-400">Valor</label>
+            <Input
+              type="number"
               step="0.01"
               min="0.01"
               placeholder="0,00"
               value={valor}
               onChange={(e) => setValor(e.target.value)}
               required
+              className="bg-transparent border border-slate-600 text-white text-sm px-3 py-2 rounded-md focus:border-blue-500"
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Método de pagamento</label>
-            <Select value={metodo} onChange={(e) => setMetodo(e.target.value)} required>
-              <option value="Pix">Pix</option>
-              <option value="Comissão">Comissão</option>
+          {/* MÉTODO */}
+          <div className="space-y-1">
+            <label className="text-xs text-slate-400">Método</label>
+            <Select
+              value={metodo}
+              onChange={(e) => setMetodo(e.target.value)}
+              required
+              className="bg-transparent border border-slate-600 text-white text-sm px-3 py-2 rounded-md focus:border-blue-500"
+            >
+              <option className="bg-slate-800">Pix</option>
+              <option className="bg-slate-800">Comissão</option>
             </Select>
           </div>
 
-          <Button type="submit" className="w-full mt-2">
-            Salvar pagamento
+          {/* BOTÃO */}
+          <Button
+            type="submit"
+            className="w-full mt-3 bg-blue-600 hover:bg-blue-700 text-white text-sm py-2 rounded-md transition"
+          >
+            Salvar
           </Button>
         </form>
       </CardContent>
     </Card>
-  );
+  )
 }
