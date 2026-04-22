@@ -7,7 +7,6 @@ import { Card, CardContent } from "./ui/Card"
 import { formatCurrency } from "../utils/formatters"
 import { CarFront } from "lucide-react"
 
-// 🔥 FORMATAR MÊS
 const formatarMes = (data) => {
   const texto = data.toLocaleDateString("pt-BR", {
     month: "long",
@@ -21,7 +20,6 @@ export function Dashboard({ onOpenSettings }) {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  // ===== LOAD DATA =====
   useEffect(() => {
     async function load() {
       try {
@@ -31,37 +29,49 @@ export function Dashboard({ onOpenSettings }) {
           data: { user },
         } = await supabase.auth.getUser()
 
-        // 🔴 NÃO LOGADO
         if (!user) {
           setLoading(false)
           return
         }
 
-        // ===== PROFILE =====
-        const { data: profileData } = await supabase
+        // Busca profile
+        const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select("*")
           .eq("id", user.id)
           .single()
 
-        // 🔥 SE NÃO TEM CONFIG → MANDA PRO SETTINGS
-        if (!profileData || !profileData.item || !profileData.total_value) {
+        // Se não existe profile nenhum, manda pro settings
+        if (profileError || !profileData) {
+          onOpenSettings()
+          return
+        }
+
+        // Só redireciona pro settings se item ou total_value não foram configurados
+        // (total_value === 0 é válido como "não configurado" apenas se item tbm for vazio)
+        if (!profileData.item || !profileData.total_value) {
+          setProfile(profileData)
           onOpenSettings()
           return
         }
 
         setProfile(profileData)
 
-        // ===== PAYMENTS =====
-        const { data: paymentsData } = await supabase
+        // Busca pagamentos
+        const { data: paymentsData, error: paymentsError } = await supabase
           .from("payments")
           .select("*")
           .eq("user_id", user.id)
           .order("date", { ascending: false })
 
+        if (paymentsError) {
+          console.error("Erro ao buscar pagamentos:", paymentsError)
+        }
+
+        // Normaliza: a coluna no Supabase é "value", mas o código usa "amount"
         const mapped = (paymentsData || []).map((p) => ({
           ...p,
-          amount: p.value || p.amount,
+          amount: Number(p.value ?? p.amount ?? 0),
         }))
 
         setPayments(mapped)
@@ -75,7 +85,6 @@ export function Dashboard({ onOpenSettings }) {
     load()
   }, [])
 
-  // ===== LOADING =====
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
@@ -84,18 +93,16 @@ export function Dashboard({ onOpenSettings }) {
     )
   }
 
-  // ===== DADOS =====
   const totalCarro = profile?.total_value || 0
   const item = profile?.item || "Item"
   const totalPago = payments.reduce((sum, p) => sum + p.amount, 0)
   const restante = Math.max(0, totalCarro - totalPago)
   const progresso = totalCarro > 0 ? (totalPago / totalCarro) * 100 : 0
 
-  // ===== META MENSAL =====
   const hoje = new Date()
 
   const pagamentosMes = payments.filter((p) => {
-    const d = new Date(p.date)
+    const d = new Date(p.date + "T00:00:00") // evita bug de timezone
     return (
       d.getMonth() === hoje.getMonth() && d.getFullYear() === hoje.getFullYear()
     )
@@ -105,10 +112,9 @@ export function Dashboard({ onOpenSettings }) {
   const meta = profile?.monthly_goal || 0
   const progressoMeta = meta > 0 ? (totalMes / meta) * 100 : 0
 
-  // ===== MÉDIA =====
   const mesesUnicos = new Set(
     payments.map((p) => {
-      const d = new Date(p.date)
+      const d = new Date(p.date + "T00:00:00")
       return `${d.getMonth()}-${d.getFullYear()}`
     }),
   ).size
@@ -116,7 +122,6 @@ export function Dashboard({ onOpenSettings }) {
   const media = mesesUnicos > 0 ? totalPago / mesesUnicos : 0
 
   let previsao = null
-
   if (media > 0 && restante > 0) {
     const mesesRestantes = restante / media
     const dataFinal = new Date()
@@ -124,7 +129,6 @@ export function Dashboard({ onOpenSettings }) {
     previsao = formatarMes(dataFinal)
   }
 
-  // ===== ADD =====
   const handleAddPayment = async ({
     paymentDate,
     paymentValue,
@@ -136,7 +140,7 @@ export function Dashboard({ onOpenSettings }) {
 
     if (!user) return
 
-    await supabase.from("payments").insert([
+    const { error } = await supabase.from("payments").insert([
       {
         date: paymentDate,
         value: Number(paymentValue),
@@ -145,23 +149,33 @@ export function Dashboard({ onOpenSettings }) {
       },
     ])
 
-    // 🔥 RELOAD
+    if (error) {
+      console.error("Erro ao inserir pagamento:", error)
+      return
+    }
+
+    // Recarrega pagamentos
     const { data: newData } = await supabase
       .from("payments")
       .select("*")
       .eq("user_id", user.id)
+      .order("date", { ascending: false })
 
     setPayments(
-      newData.map((p) => ({
+      (newData || []).map((p) => ({
         ...p,
-        amount: p.value,
+        amount: Number(p.value ?? p.amount ?? 0),
       })),
     )
   }
 
-  // ===== DELETE =====
   const handleDeletePayment = async (id) => {
-    await supabase.from("payments").delete().eq("id", id)
+    const { error } = await supabase.from("payments").delete().eq("id", id)
+
+    if (error) {
+      console.error("Erro ao deletar pagamento:", error)
+      return
+    }
 
     setPayments((prev) => prev.filter((p) => p.id !== id))
   }
@@ -176,7 +190,6 @@ export function Dashboard({ onOpenSettings }) {
               <CarFront className="text-blue-500" />
               Dashboard {item}
             </h1>
-            
           </div>
 
           <button
@@ -223,7 +236,7 @@ export function Dashboard({ onOpenSettings }) {
               <div className="h-2 bg-slate-700 rounded mt-2">
                 <div
                   className="h-2 bg-green-500 rounded"
-                  style={{ width: `${progresso}%` }}
+                  style={{ width: `${Math.min(progresso, 100)}%` }}
                 />
               </div>
             </CardContent>
